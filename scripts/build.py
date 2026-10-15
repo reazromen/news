@@ -44,6 +44,18 @@ def parse_article(path: Path):
         raise ValueError(f"{path}: date needs an explicit timezone")
     if len(body) < 250:
         raise ValueError(f"{path}: article body is too short to publish")
+    image_fields = ("image_url", "image_alt", "image_caption", "image_credit", "image_source_url", "image_license", "image_rights_basis", "image_rights_checked")
+    if any(fields.get(k) for k in image_fields):
+        missing_image = [k for k in image_fields if not fields.get(k)]
+        if missing_image:
+            raise ValueError(f"{path}: image rights metadata missing: {missing_image}")
+        if fields["image_rights_checked"].lower() != "true":
+            raise ValueError(f"{path}: image rights must be explicitly checked")
+        if fields["image_rights_basis"] not in ("license", "permission", "public-domain", "press-kit"):
+            raise ValueError(f"{path}: unsupported image_rights_basis")
+        for key in ("image_url", "image_source_url"):
+            if not fields[key].startswith("https://"):
+                raise ValueError(f"{path}: {key} must use HTTPS")
     return {**fields, "date_dt": stamp, "body": body, "path": path}
 
 def md(text):
@@ -76,8 +88,16 @@ def shell(title, desc, body, canonical):
 <style>
 :root{{color-scheme:light dark;--line:color-mix(in srgb,CanvasText 18%,transparent);--muted:color-mix(in srgb,CanvasText 68%,transparent)}}
 *{{box-sizing:border-box}}body{{margin:0;font:18px/1.8 system-ui,-apple-system,"Noto Sans Bengali",sans-serif;background:Canvas;color:CanvasText}}
-header,main,footer{{max-width:850px;margin:auto;padding:20px}}header{{border-bottom:1px solid var(--line)}}a{{color:inherit}}.brand{{font-size:24px;font-weight:750;text-decoration:none}}.muted,small{{color:var(--muted)}}article{{padding:24px 0;border-bottom:1px solid var(--line)}}h1{{line-height:1.35;font-size:clamp(30px,6vw,44px)}}h2{{line-height:1.4}}.meta{{font-size:14px;color:var(--muted)}}.summary{{font-size:19px}}.source{{border-left:3px solid var(--line);padding:10px 16px;margin:28px 0;font-size:15px}}footer{{border-top:1px solid var(--line);font-size:14px;color:var(--muted)}}
+header,main,footer{{max-width:850px;margin:auto;padding:20px}}header{{border-bottom:1px solid var(--line)}}a{{color:inherit}}.brand{{font-size:24px;font-weight:750;text-decoration:none}}.muted,small{{color:var(--muted)}}article{{padding:24px 0;border-bottom:1px solid var(--line)}}h1{{line-height:1.35;font-size:clamp(30px,6vw,44px)}}h2{{line-height:1.4}}.meta{{font-size:14px;color:var(--muted)}}.summary{{font-size:19px}}.source{{border-left:3px solid var(--line);padding:10px 16px;margin:28px 0;font-size:15px}}.news-image{{margin:22px 0}}.news-image img{{display:block;max-width:100%;height:auto;border-radius:8px}}.news-image figcaption{{font-size:14px;color:var(--muted);margin-top:8px}}footer{{border-top:1px solid var(--line);font-size:14px;color:var(--muted)}}
 </style></head><body><header><a class="brand" href="/">সংবাদ · News</a><div class="muted">তথ্যসূত্রসহ বাংলা সংবাদ · Git-canonical publication</div></header><main>{body}</main><footer>প্রতিটি প্রতিবেদনের মূল কপি Git-এ সংরক্ষিত। তথ্যসূত্র ও প্রকাশের তারিখ প্রতিটি প্রতিবেদনে দেওয়া থাকে।</footer></body></html>'''
+
+def image_markup(a):
+    if not a.get("image_url"):
+        return ""
+    return (f'<figure class="news-image"><img src="{html.escape(a["image_url"], quote=True)}" '
+            f'alt="{html.escape(a["image_alt"], quote=True)}" loading="lazy" decoding="async">'
+            f'<figcaption>{html.escape(a["image_caption"])} · {html.escape(a["image_credit"])} '
+            f'(<a rel="nofollow noopener" href="{html.escape(a["image_source_url"], quote=True)}">মূল সূত্র</a>)</figcaption></figure>')
 
 def main():
     p = argparse.ArgumentParser()
@@ -97,7 +117,7 @@ def main():
     for a in articles:
         url = f"{BASE_URL}/article/{a['slug']}/"
         (out / "article" / a["slug"]).mkdir(parents=True)
-        body = f'<article><div class="meta">{html.escape(a["category"])} · {a["date_dt"].strftime("%Y-%m-%d %H:%M %z")}</div><h1>{html.escape(a["title"])}</h1><p class="summary">{html.escape(a["summary"])}</p>{md(a["body"])}<div class="source">তথ্যসূত্র: <a rel="nofollow noopener" href="{html.escape(a["source_url"], quote=True)}">{html.escape(a["source_name"])}</a></div></article>'
+        body = f'<article><div class="meta">{html.escape(a["category"])} · {a["date_dt"].strftime("%Y-%m-%d %H:%M %z")}</div><h1>{html.escape(a["title"])}</h1><p class="summary">{html.escape(a["summary"])}</p>{image_markup(a)}{md(a["body"])}<div class="source">তথ্যসূত্র: <a rel="nofollow noopener" href="{html.escape(a["source_url"], quote=True)}">{html.escape(a["source_name"])}</a></div></article>'
         (out / "article" / a["slug"] / "index.html").write_text(shell(a["title"], a["summary"], body, url), encoding="utf-8")
         cards.append(f'<article><div class="meta">{html.escape(a["category"])} · {a["date_dt"].strftime("%Y-%m-%d %H:%M %z")}</div><h2><a href="/article/{quote(a["slug"])}/">{html.escape(a["title"])}</a></h2><p>{html.escape(a["summary"])}</p><div class="meta">তথ্যসূত্র: {html.escape(a["source_name"])}</div></article>')
     if not cards:

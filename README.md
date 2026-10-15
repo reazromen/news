@@ -24,4 +24,8 @@ Each `.md` file starts with YAML front matter: `title`, `slug`, `date`, `updated
 
 ## Current deployment state
 
-The repository and static build workflow are prepared. The custom domain must only be switched after GitHub Pages deployment is verified, and DNS/edge routing must be changed deliberately so the existing WordPress site is not accidentally disrupted. AI-provider and n8n credentials are configured separately from this repository.
+The static site is served at `https://news.reazromen.com/` from the server-side build of this Git repository. A two-minute poll deploys pushed commits to the dedicated static directory; it refuses to deploy if the checkout has uncommitted changes. WordPress remains available under the same hostname at `/wp-login.php` and `/wp-admin/` for manual editing. Automated AI generation, n8n publishing, image uploads, and WordPress-to-Git export are not yet live.
+
+## Image policy
+
+Read [`docs/IMAGE_RIGHTS_AND_STORAGE.md`](docs/IMAGE_RIGHTS_AND_STORAGE.md). A newspaper credit does not grant permission to rehost its copyrighted image. Publish hosted images only when a documented licence, permission, public-domain basis, or permitted press-kit use is recorded. Image binaries belong in a verified media host/CDN, not the news Git history; Git stores the URL and rights metadata.

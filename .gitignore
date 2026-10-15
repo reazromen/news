@@ -5,3 +5,7 @@ __pycache__/
 !.env.example
 secrets/
 raw-feeds/
+
+# Local build output and deployment logs
+dist/
+ops/deploy.log
