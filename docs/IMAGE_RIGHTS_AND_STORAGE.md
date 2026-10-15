@@ -48,3 +48,7 @@ An image may be displayed only when the article's image record has a verified ri
 ## Automation gate
 
 The publishing workflow must reject or omit an image when the rights basis, source URL, credit line, or licence/permission evidence is missing. It must not scrape full-size images by default. Store only the article text and source metadata needed for editorial work; keep the original article linked. An editor can approve an image record before a Git commit publishes it.
+
+## Google Drive implementation
+
+Google Drive is the selected media archive. See [`GOOGLE_DRIVE_MEDIA_SETUP.md`](GOOGLE_DRIVE_MEDIA_SETUP.md) and `scripts/upload_image_to_drive.py`. Uploads remain private by default and require explicit rights metadata. Configure the `newsdrive` rclone remote as the `romen` user before uploading. Do not publish Drive URLs until unauthenticated image delivery is tested.
