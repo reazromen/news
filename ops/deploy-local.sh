@@ -10,5 +10,5 @@ fi
 git fetch --prune origin main
 git merge --ff-only origin/main
 python3 scripts/build.py --output dist
-rsync -a --delete dist/ "$DEST/"
+rsync -a --delete --exclude=/media/ dist/ "$DEST/"
 printf 'Deployed commit %s to %s\n' "$(git rev-parse --short HEAD)" "$DEST"

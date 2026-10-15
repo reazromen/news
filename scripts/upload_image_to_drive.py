@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-ALLOWED_BASES = {"license", "permission", "public-domain", "press-kit"}
+ALLOWED_BASES = {"license", "permission", "public-domain", "press-kit", "original"}
 
 def run(args):
     return subprocess.run(args, text=True, capture_output=True, check=True).stdout
@@ -44,6 +44,8 @@ def main():
         p.error("--source-url must be HTTPS")
     if not a.license.strip():
         p.error("--license must name the applicable licence or permission basis")
+    if a.rights_basis == "original" and not a.creator.strip():
+        p.error("--creator is required for original artwork")
     if a.rights_basis == "permission" and not a.permission_reference.strip():
         p.error("--permission-reference is required for permission-based uploads")
     if a.rights_basis == "license" and not a.license_url.startswith("https://"):
@@ -77,7 +79,7 @@ def main():
         "sharing_status": "private-until-explicitly-approved",
     }
     try:
-        run(["rclone", "lsjson", a.remote.split(":", 1)[0] + ":", "--max-depth", "1"])
+        run(["rclone", "lsjson", a.remote, "--max-depth", "1"])
         run(["rclone", "copyto", str(f), image_remote])
         manifest_path = Path("/tmp") / f"news-media-{asset_id}.json"
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

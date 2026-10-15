@@ -24,3 +24,8 @@ Drive storage is not automatically a production CDN. Before placing any Drive UR
 ## Current state
 
 Uploader and policy are prepared. Google OAuth is not configured until the server owner completes `rclone config`; public image delivery remains unenabled until tested.
+
+
+## Verified public delivery path
+
+The scripts/deliver_image_to_site.py command reads the Drive rights manifest, checks the rights basis and SHA-256, copies the approved asset to the dedicated /media/ directory, and records the public URL in the Drive manifest. This is an explicit public-delivery action; the upload script alone keeps assets private. The local deploy sync excludes /media/ so a static-site rebuild does not delete approved media. Original editorial illustrations use rights_basis: original and must identify their creator. Verify the returned URL with an unauthenticated HTTP request before publishing an article that references it.

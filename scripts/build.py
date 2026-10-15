@@ -39,6 +39,11 @@ def parse_article(path: Path):
         raise ValueError(f"{path}: invalid slug")
     if not fields["source_url"].startswith("https://"):
         raise ValueError(f"{path}: source_url must use HTTPS")
+    if fields.get("secondary_source_url"):
+        if not fields.get("secondary_source_name"):
+            raise ValueError(f"{path}: secondary_source_name is required with secondary_source_url")
+        if not fields["secondary_source_url"].startswith("https://"):
+            raise ValueError(f"{path}: secondary_source_url must use HTTPS")
     stamp = dt.datetime.fromisoformat(fields["date"].replace("Z", "+00:00"))
     if stamp.tzinfo is None:
         raise ValueError(f"{path}: date needs an explicit timezone")
@@ -51,7 +56,7 @@ def parse_article(path: Path):
             raise ValueError(f"{path}: image rights metadata missing: {missing_image}")
         if fields["image_rights_checked"].lower() != "true":
             raise ValueError(f"{path}: image rights must be explicitly checked")
-        if fields["image_rights_basis"] not in ("license", "permission", "public-domain", "press-kit"):
+        if fields["image_rights_basis"] not in ("license", "permission", "public-domain", "press-kit", "original"):
             raise ValueError(f"{path}: unsupported image_rights_basis")
         for key in ("image_url", "image_source_url"):
             if not fields[key].startswith("https://"):
@@ -117,7 +122,10 @@ def main():
     for a in articles:
         url = f"{BASE_URL}/article/{a['slug']}/"
         (out / "article" / a["slug"]).mkdir(parents=True)
-        body = f'<article><div class="meta">{html.escape(a["category"])} · {a["date_dt"].strftime("%Y-%m-%d %H:%M %z")}</div><h1>{html.escape(a["title"])}</h1><p class="summary">{html.escape(a["summary"])}</p>{image_markup(a)}{md(a["body"])}<div class="source">তথ্যসূত্র: <a rel="nofollow noopener" href="{html.escape(a["source_url"], quote=True)}">{html.escape(a["source_name"])}</a></div></article>'
+        source_links = f'<a rel="nofollow noopener" href="{html.escape(a["source_url"], quote=True)}">{html.escape(a["source_name"])}</a>'
+        if a.get("secondary_source_url"):
+            source_links += f' · <a rel="nofollow noopener" href="{html.escape(a["secondary_source_url"], quote=True)}">{html.escape(a["secondary_source_name"])}</a>'
+        body = f'<article><div class="meta">{html.escape(a["category"])} · {a["date_dt"].strftime("%Y-%m-%d %H:%M %z")}</div><h1>{html.escape(a["title"])}</h1><p class="summary">{html.escape(a["summary"])}</p>{image_markup(a)}{md(a["body"])}<div class="source">তথ্যসূত্র: {source_links}</div></article>'
         (out / "article" / a["slug"] / "index.html").write_text(shell(a["title"], a["summary"], body, url), encoding="utf-8")
         cards.append(f'<article><div class="meta">{html.escape(a["category"])} · {a["date_dt"].strftime("%Y-%m-%d %H:%M %z")}</div><h2><a href="/article/{quote(a["slug"])}/">{html.escape(a["title"])}</a></h2><p>{html.escape(a["summary"])}</p><div class="meta">তথ্যসূত্র: {html.escape(a["source_name"])}</div></article>')
     if not cards:

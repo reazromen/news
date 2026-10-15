@@ -18,7 +18,7 @@
 
 ## Not yet enabled
 - Hourly n8n AI generation, source-quality validation, Git commit/push, and WordPress-to-Git manual-edit sync are not live yet.
-- The image rights policy is documented, but image ingestion/upload is not connected to n8n. Newspaper images must not be copied/rehosted without a verified licence or permission; credit alone is insufficient.
+- The image rights policy, Google Drive uploader, and explicit public-delivery script are implemented. A single original editorial SVG was archived in Drive, delivered to /media/, and verified publicly with HTTP 200 and matching SHA-256. Image ingestion/upload is not yet connected to n8n. Newspaper images must not be copied/rehosted without a verified licence or permission; credit alone is insufficient.
 - The current AI mesh providers have previously returned cooldown/unavailable states; recheck before activating an unattended workflow.
 
 ## Next safe activation order
