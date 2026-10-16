@@ -44,7 +44,7 @@ Detailed evidence and limitations: [WordPress publishing status](../docs/WORDPRE
 - The full Mesh AI → source/editorial validation → Git commit/deploy → WordPress pipeline has not passed an end-to-end automated test.
 - Current n8n publisher workflow reads one fixed approved Git article; it is not yet a dynamic queue or connected to the Mesh AI generation stage.
 - Hourly/unattended news generation and publishing are not approved for activation.
-- WordPress-to-Git synchronization is implemented in `scripts/sync_wordpress_published.py`: it imports only newly created published posts beyond cutover ID 681, validates ASCII slug/source/body, skips existing Git slugs, omits unverified images, commits and pushes new Markdown, and leaves deployment to the existing two-minute poll. The sync cron is enabled after backup and validation.
+- WordPress-to-Git synchronization is implemented in `scripts/sync_wordpress_published.py`: it scans all published WordPress posts, imports only entries passing ASCII slug/source/body validation, skips existing Git slugs, omits unverified images, commits and pushes new Markdown, and leaves deployment to the existing two-minute poll. The sync cron is enabled after backup and validation.
 - Image ingestion/upload is not connected to the news n8n workflow.
 - Google Drive OAuth/client configuration must be reviewed before unattended use; do not put tokens in repository files or workflow exports.
 
@@ -65,7 +65,7 @@ A hosted image must have a documented licence, permission, public-domain basis, 
 ## WordPress-to-Git sync rollout (2026-10-16)
 
 - Pre-change backup created at `/home/romen/services/hserver-caddy/backups/news-sync-prechange-20261016-1128/`, including a consistent MariaDB dump, static site archive, Caddyfile, MU plugins, and SHA-256 manifest.
-- Added `scripts/sync_wordpress_published.py` and unit tests. It has a dry-run mode, a cutover watermark of ID 681, and immutable Git slug conflict handling.
-- Current live REST API dry-run found no eligible posts newer than the watermark; no historical WordPress posts were imported. Existing post 680 and draft 681 are left untouched.
+- Added `scripts/sync_wordpress_published.py` and unit tests. It has a dry-run mode, a full-archive scan with immutable Git slug conflict handling, and immutable Git slug conflict handling.
+- Current live REST API full-archive dry-run found four additional eligible historical posts; the existing post 680 is already in Git and will not be overwritten. The other archive entries were skipped because of percent-encoded Bengali slugs or missing external HTTPS source links. Drafts are never fetched.
 - Scheduled import is separate from Mesh AI generation. It imports only already-published WordPress content; n8n news schedules and Content Studio global dispatch remain disabled.
 - Full details: `docs/WORDPRESS-TO-GIT-SYNC.md`.

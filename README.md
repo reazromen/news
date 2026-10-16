@@ -8,7 +8,7 @@ This repository is the canonical source of published news for `news.reazromen.co
 2. Editorial/source validation checks source URLs, dates, required facts, duplicate slug/source, and content quality.
 3. Only validated Markdown files may be committed and pushed to `main`.
 4. The static-site build/deploy process publishes the Git-canonical article, feed, and sitemap.
-5. WordPress-published posts newer than the documented cutover watermark are validated and imported into Git without overwriting existing slugs; the two-minute static deploy poll then rebuilds the public site. The n8n publisher remains manual-only.
+5. WordPress-published posts that pass source, content, and slug checks are imported into Git without overwriting existing slugs; the two-minute static deploy poll then rebuilds the public site. The n8n publisher remains manual-only.
 
 **Current verified boundary:** one approved Git article was fetched by n8n and created as WordPress draft ID 681. A retry returned the same draft ID without duplication. The already-live canonical WordPress article (post 680) was left unchanged. This verifies one-article Git → validation → n8n → WordPress draft delivery, not the full unattended Mesh AI generation pipeline.
 

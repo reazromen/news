@@ -88,7 +88,7 @@ def existing_slugs():
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="show eligible imports without writing or committing")
-    ap.add_argument("--since-id", type=int, default=681, help="only consider WordPress post IDs greater than this cutover watermark (default: 681)")
+    ap.add_argument("--since-id", type=int, default=0, help="only consider WordPress post IDs greater than this ID (default: 0; existing Git slugs are skipped)")
     ap.add_argument("--no-push", action="store_true", help="write and commit locally but do not push")
     args=ap.parse_args()
     if not args.dry_run:
@@ -157,7 +157,7 @@ def main():
         dest=ARTICLES/f"{slug}.md"
         additions.append((dest,front+body+"\n",int(post.get("id",0)),slug))
         known.add(slug)
-    print(f"WordPress published posts scanned: {len(posts)}; cutover watermark: ID > {args.since_id}; eligible new Git articles: {len(additions)}; skipped for validation: {skipped}")
+    print(f"WordPress published posts scanned: {len(posts)}; minimum ID filter: ID > {args.since_id}; eligible new Git articles: {len(additions)}; skipped for validation: {skipped}")
     for dest,_,post_id,slug in additions: print(f"IMPORT id={post_id} slug={slug} -> {dest.name}")
     if args.dry_run or not additions: return 0
     for dest,content,_,_ in additions:

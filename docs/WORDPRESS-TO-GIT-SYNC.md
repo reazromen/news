@@ -8,7 +8,7 @@ WordPress is the editorial publishing interface; Git remains the canonical stati
 
 ## Import guardrails
 
-- The initial cutover watermark is WordPress post ID `681` (exclusive). This deliberately excludes the existing WordPress archive and test draft ID 681; only newly created posts with ID > 681 are candidates.
+- The importer scans all publicly published WordPress posts (default `--since-id 0`) on each run. This also backfills older posts that pass the same source, body, and slug checks. Existing Git slugs are skipped, so the current Git article (WordPress ID 680) is not duplicated. Drafts and pending posts are excluded by the REST API status filter.
 - Only WordPress posts whose REST status is `publish` are considered. Drafts and pending posts are never imported.
 - Slugs must be lowercase ASCII words separated by hyphens, matching the static builder's URL contract.
 - The article body must contain at least 250 characters and at least one external HTTPS source link. Posts failing these checks are logged and skipped.
@@ -21,9 +21,9 @@ WordPress is the editorial publishing interface; Git remains the canonical stati
 
 - `scripts/sync_wordpress_published.py --dry-run` checks the live public WordPress REST API without writing files.
 - `python3 -m unittest discover -s tests -v` runs parser/validation tests.
-- The importer does not backfill historic WordPress posts. The pre-existing Git article (WordPress post 680) stays owned by Git and is not overwritten.
+- The importer does not backfill historic WordPress posts. The pre-existing Git article (WordPress post 680) stays owned by Git and is not overwritten. A read-only full-archive dry-run found four additional posts eligible for safe import; the rest were skipped due to invalid encoded slugs or missing external HTTPS source links.
 - If a new post lacks a valid external HTTPS source link, uses a non-ASCII slug, or has too little body text, it remains available in WordPress but is not copied to the static site; inspect the sync log and fix the source post before retrying.
-- The `news-wordpress-git-sync` cron entry runs every two minutes on odd minutes. The existing static deployment poll runs on even minutes, so a successful Git push is normally deployed on the next poll.
+- The `news-wordpress-git-sync` cron entry runs every two minutes on odd minutes and scans the full published archive; existing Git slugs are skipped. The existing static deployment poll runs on even minutes, so a successful Git push is normally deployed on the next poll.
 - No WordPress content is deleted or modified by this importer. It only creates new Markdown files for previously unseen slugs.
 
 ## Operations
