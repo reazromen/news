@@ -33,6 +33,6 @@ python3 /home/romen/services/news-git-publisher/scripts/sync_wordpress_published
 python3 -m unittest discover -s /home/romen/services/news-git-publisher/tests -v
 ```
 
-Log: `/home/romen/services/news-git-publisher/ops/wordpress-git-sync.log`
+Log: `/home/romen/logs/news-wordpress-git-sync.log`
 
 Backups captured before this change: `/home/romen/services/hserver-caddy/backups/news-sync-prechange-20261016-1128/` (Caddyfile, static site, WordPress database dump, and MU plugins; SHA-256 manifest included).
