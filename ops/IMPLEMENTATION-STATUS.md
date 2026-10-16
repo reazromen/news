@@ -21,7 +21,7 @@ Last updated: 2026-10-16
 - WordPress post ID 680 is published at `https://news.reazromen.com/dhaka-shyamapur-to-cumilla-81km-rail-cord-line-proposal/`.
 - WordPress REST API reported post 680 as published; WordPress RSS and category archive included it.
 - Caddy serves existing static files first and falls back to WordPress for non-static permalinks and WordPress routes.
-- The new authenticated draft-only endpoint was installed as a WordPress MU plugin and PHP syntax validation passed.
+- The authenticated WordPress MU plugin now exposes a direct-publish endpoint plus the retained draft-only endpoint; PHP syntax validation passed.
 - n8n smoke workflow fetched the approved Git article, validated it, and created WordPress draft post ID 681 with a test-only title/slug.
 - Retrying the same request returned post ID 681 with `idempotent_replay=true`; no duplicate draft was created.
 - Unauthenticated publisher access returned HTTP 401. Anonymous draft permalink returned HTTP 404.
@@ -33,10 +33,10 @@ Detailed evidence and limitations: [WordPress publishing status](../docs/WORDPRE
 ## Publisher implementation
 
 - WordPress MU plugin source: `/home/romen/services/news-portal/ops/news-publisher-draft-api.php`.
-- Endpoint: `POST /wp-json/news-publisher/v1/draft`.
+- Direct endpoint: `POST /wp-json/news-publisher/v1/publish`; retained safe draft endpoint: `/wp-json/news-publisher/v1/draft`.
 - Auth header: `X-News-Publisher-Token`; the token lives in the protected WordPress environment file and an encrypted n8n credential, not in workflow JSON or Git.
-- The endpoint is hard-coded to create drafts, validates input, restricts image embeds to approved site media, rejects slug conflicts, and handles retry idempotency.
-- Permanent n8n workflow: `News Git → WordPress Draft Publisher (Manual Test Only)`; it is inactive and has no schedule trigger.
+- The direct endpoint publishes only after validating the submitted approved Git article; the draft endpoint remains draft-only. Both validate input, restrict image embeds to approved site media, reject slug conflicts, and handle idempotent retries.
+- Permanent n8n workflow: `News Git → WordPress Direct Publisher (Manual Only)`; it is inactive and has no schedule trigger. It now targets `/publish`.
 - The one-article test passed using a temporary authenticated webhook workflow, which is now inactive.
 
 ## Not yet enabled / incomplete
@@ -51,10 +51,10 @@ Detailed evidence and limitations: [WordPress publishing status](../docs/WORDPRE
 ## Next safe activation order
 
 1. Connect Mesh AI generation and source verification to the validated article queue.
-2. Use a new, unused canonical slug for the next end-to-end draft test; the existing canonical slug already belongs to published post 680 and must not be overwritten.
-3. Run the permanent publisher workflow manually and verify draft status, metadata, media, RSS/category behavior after editorial publication, and idempotent retry.
+2. The Git article directory currently contains only one article, already published as WordPress post 680. Prepare and approve a distinct article with a new unused slug before running the direct-publish workflow; never overwrite post 680.
+3. Run the permanent publisher workflow manually and verify published status, public permalink, metadata, media, RSS/category inclusion, and idempotent retry.
 4. Add monitored failure handling and ensure drafts are not silently marked published.
-5. Keep all schedules and global dispatch disabled until the owner explicitly authorizes activation after reviewing passing evidence.
+5. Keep all schedules and Content Studio global dispatch disabled. Direct publishing is manual-only; do not enable a schedule without separate authorization.
 6. Implement explicit WordPress-to-Git export only with conflict detection; Git remains canonical for the static corpus.
 
 ## Image rights

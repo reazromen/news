@@ -4,7 +4,7 @@ Last verified: 2026-10-16
 
 ## Current result
 
-**The draft-only WordPress publisher endpoint and one n8n-to-WordPress draft test passed. Unattended news publishing is not enabled.**
+**The direct-publish endpoint is installed and the permanent n8n workflow is configured for manual direct publishing. No direct publish has yet been executed with a new article. Scheduled news publishing remains disabled.**
 
 ### End-to-end draft smoke test
 
@@ -27,9 +27,9 @@ The test draft is intentionally not published. It can be reviewed in WordPress a
 
 - Source file: `/home/romen/services/news-portal/ops/news-publisher-draft-api.php`
 - Installed MU plugin: `/var/www/html/wp-content/mu-plugins/news-publisher-draft-api.php`
-- Route: `POST /wp-json/news-publisher/v1/draft`
+- Direct-publish route: `POST /wp-json/news-publisher/v1/publish`; draft-only route remains `POST /wp-json/news-publisher/v1/draft`.
 - Authentication: `X-News-Publisher-Token` header; secret is stored in the protected WordPress environment file and in an encrypted n8n credential, not in workflow JSON or Git.
-- The endpoint is draft-only: it hardcodes `post_status=draft` and has no publish/status override.
+- `/publish` directly publishes a new article after validation; `/draft` remains draft-only. Callers cannot override the post status. Both routes reject conflicting slugs and use idempotency protection.
 - It validates required fields, HTTPS source URLs, ASCII slug format, article length, category existence, and approved media URLs under `https://news.reazromen.com/media/`.
 - Existing draft with the same slug and source is an idempotent replay. A different or already-published post with the slug is a conflict; the endpoint does not overwrite it.
 - Comments and pingbacks are closed. Source links and image caption/alt text are included in the body.
@@ -37,7 +37,7 @@ The test draft is intentionally not published. It can be reviewed in WordPress a
 
 ## n8n state and activation boundary
 
-- Permanent workflow: `News Git → WordPress Draft Publisher (Manual Test Only)` (manual trigger only, inactive).
+- Permanent workflow: `News Git → WordPress Direct Publisher (Manual Only)` (manual trigger only, inactive).
 - The one-article smoke-test workflow was used through a temporary authenticated webhook, then unpublished. Its webhook is no longer registered.
 - News publishing workflows remain inactive; no schedule node is present in the publisher workflow.
 - The Facebook Content Agent remains inactive.
@@ -49,17 +49,20 @@ The test draft is intentionally not published. It can be reviewed in WordPress a
 This proves **Git article → validation → n8n → WordPress draft** for one approved article. It does not prove a full unattended Mesh AI news pipeline.
 
 Still outstanding:
-- Connect the actual Mesh AI article-generation and source-verification stage to the publisher workflow.
+- The Git article directory currently has only one article and its canonical slug is already live as WordPress post 680. Do not re-run the workflow against that slug; the conflict guard must leave it unchanged.
+- Prepare and approve a distinct new Git article with an unused slug, then run the permanent workflow manually and verify WordPress status `publish`, public permalink HTTP 200, source attribution, and idempotent retry.
 - Replace the single fixed article URL with a validated queue/trigger that only sends approved canonical articles.
 - Test a new, unused canonical slug through the permanent workflow (the existing canonical slug already belongs to a live WordPress post and correctly returns a conflict).
 - Add monitored failure alerts and documented retry handling for network/provider failures.
 - Test image delivery/rights metadata for more than this one approved original illustration.
-- Run a final single-article acceptance test on the permanent workflow, then obtain explicit authorization before enabling any schedule.
+- Connect the actual Mesh AI article-generation and source-verification stage to the publisher workflow.
+- Keep all schedule triggers and Content Studio global dispatch disabled; direct publishing is currently manual-only.
 
 ## Canonical ownership
 
 - Git Markdown remains canonical for the static news corpus.
 - WordPress drafts are delivery copies for editorial review, not the source of truth.
+- Draft ID 681 is a test-only post with a suffix slug and must remain unpublished.
 - WordPress edits are not automatically exported back to Git.
 - Do not treat WordPress and Git as dual-authoritative until a conflict-aware export/sync process is implemented.
 
