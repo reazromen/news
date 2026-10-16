@@ -4,68 +4,69 @@ Last verified: 2026-10-16
 
 ## Current result
 
-**A single test article is published in WordPress and publicly accessible. The automated publishing pipeline is not yet complete.**
+**The draft-only WordPress publisher endpoint and one n8n-to-WordPress draft test passed. Unattended news publishing is not enabled.**
 
-### Verified test post
+### End-to-end draft smoke test
 
-- Title: ঢাকা–কুমিল্লা ৮১ কিমি রেল কর্ড লাইনের প্রস্তাব, ব্যয় ৮৩,৯০১ কোটি টাকা
-- WordPress post ID: 680
-- Slug: `dhaka-shyamapur-to-cumilla-81km-rail-cord-line-proposal`
-- Public permalink: https://news.reazromen.com/dhaka-shyamapur-to-cumilla-81km-rail-cord-line-proposal/
-- WordPress REST API: `/wp-json/wp/v2/posts/680` reported `status=publish`, the expected link, and category metadata.
-- WordPress RSS: https://news.reazromen.com/feed/ includes the post.
-- Bangladesh category archive returned HTTP 200 and included the post.
-- Article HTML includes the original conceptual SVG illustration and source links; the image URL returned HTTP 200.
-- The image is embedded in the article body. WordPress `featured_media` is 0, so it is not configured as a featured image.
+- n8n fetched the approved article Markdown from the Git-canonical GitHub repository.
+- The workflow validated the YAML front matter, `status: published`, required metadata, HTTPS source URLs, ASCII slug, and a minimum 250-character body.
+- It sent the article to the authenticated WordPress draft-only endpoint.
+- WordPress created post ID **681** with status **draft**.
+- Test title is prefixed `[AUTOMATION TEST — DRAFT ONLY]`; slug ends with `-publisher-smoke-test`. This avoids touching the already-published live post with the canonical slug.
+- The post includes category ID 2, source attribution links, the approved conceptual SVG, source metadata, closed comments, and closed pingbacks.
+- A retry returned the same post ID with `idempotent_replay=true`; it did not create a duplicate.
+- A request using the already-published canonical slug returned HTTP 409 (`news_publisher_slug_conflict`); post 680 remained `publish`.
+- Direct unauthenticated access to the publisher endpoint returned HTTP 401.
+- The draft permalink returned HTTP 404 to anonymous visitors, and the anonymous WordPress REST request returned HTTP 401.
+- The public homepage and the existing live article continued to return HTTP 200.
+- The temporary authenticated webhook used for the smoke test was unpublished. The n8n main service was restarted to unregister the temporary route.
 
-This was a one-off manual publication using a temporary PHP script and the WordPress bootstrap. It is not a reusable publisher integration, and the temporary script is not the production automation.
+The test draft is intentionally not published. It can be reviewed in WordPress admin at `/wp-admin/post.php?post=681&action=edit`.
 
-## Routing and site architecture
+## WordPress publisher endpoint
 
-Caddy was validated and reloaded after a routing update. For `news.reazromen.com`:
+- Source file: `/home/romen/services/news-portal/ops/news-publisher-draft-api.php`
+- Installed MU plugin: `/var/www/html/wp-content/mu-plugins/news-publisher-draft-api.php`
+- Route: `POST /wp-json/news-publisher/v1/draft`
+- Authentication: `X-News-Publisher-Token` header; secret is stored in the protected WordPress environment file and in an encrypted n8n credential, not in workflow JSON or Git.
+- The endpoint is draft-only: it hardcodes `post_status=draft` and has no publish/status override.
+- It validates required fields, HTTPS source URLs, ASCII slug format, article length, category existence, and approved media URLs under `https://news.reazromen.com/media/`.
+- Existing draft with the same slug and source is an idempotent replay. A different or already-published post with the slug is a conflict; the endpoint does not overwrite it.
+- Comments and pingbacks are closed. Source links and image caption/alt text are included in the body.
+- Backups were taken before the endpoint was installed and before n8n database changes.
 
-- Existing static files/directories are served from the Git-built static site first.
-- WordPress administrative, REST API, content, and related WordPress paths are proxied to the WordPress service.
-- Paths without a matching static file/directory fall back to WordPress, enabling article permalinks.
-- The root homepage remains the Git-built static homepage; it has not been replaced with the WordPress homepage.
+## n8n state and activation boundary
 
-Verified public routes returned HTTP 200 at the time of testing:
+- Permanent workflow: `News Git → WordPress Draft Publisher (Manual Test Only)` (manual trigger only, inactive).
+- The one-article smoke-test workflow was used through a temporary authenticated webhook, then unpublished. Its webhook is no longer registered.
+- News publishing workflows remain inactive; no schedule node is present in the publisher workflow.
+- The Facebook Content Agent remains inactive.
+- The unrelated Hserver Infrastructure Sentinel remains active; it is not a news-publishing workflow.
+- Content Studio `PUBLISHER_DISPATCH_ENABLED=false` remains a separate safety control and was not enabled.
 
-- `/`
-- `/feed.xml`
-- `/sitemap.xml`
-- `/article/dhaka-shyamapur-to-cumilla-81km-rail-cord-line-proposal/`
-- `/dhaka-shyamapur-to-cumilla-81km-rail-cord-line-proposal/`
-- `/media/2e0f589cdd559def-dhaka-cumilla-rail-cord-illustration.svg`
+## What is not complete
 
-Caddy configuration: `/home/romen/services/hserver-caddy/Caddyfile`
+This proves **Git article → validation → n8n → WordPress draft** for one approved article. It does not prove a full unattended Mesh AI news pipeline.
 
-Pre-change backup: `/home/romen/services/hserver-caddy/Caddyfile.pre-wp-permalink-fallback-20261016`
+Still outstanding:
+- Connect the actual Mesh AI article-generation and source-verification stage to the publisher workflow.
+- Replace the single fixed article URL with a validated queue/trigger that only sends approved canonical articles.
+- Test a new, unused canonical slug through the permanent workflow (the existing canonical slug already belongs to a live WordPress post and correctly returns a conflict).
+- Add monitored failure alerts and documented retry handling for network/provider failures.
+- Test image delivery/rights metadata for more than this one approved original illustration.
+- Run a final single-article acceptance test on the permanent workflow, then obtain explicit authorization before enabling any schedule.
 
 ## Canonical ownership
 
-- Git Markdown remains the canonical source for the static news corpus.
-- WordPress currently holds a separately published copy of the test article.
-- Do not assume WordPress edits automatically sync back to Git.
-- Define and implement an explicit conflict-aware sync policy before allowing edits in both systems to be authoritative.
+- Git Markdown remains canonical for the static news corpus.
+- WordPress drafts are delivery copies for editorial review, not the source of truth.
+- WordPress edits are not automatically exported back to Git.
+- Do not treat WordPress and Git as dual-authoritative until a conflict-aware export/sync process is implemented.
 
-## Not yet implemented / not yet verified
+## Routing
 
-- No production-grade reusable WordPress publisher is connected to the Mesh AI/n8n workflow.
-- No verified end-to-end run currently proves source collection → Mesh AI article generation → editorial/source validation → Git commit/deploy → WordPress publication.
-- No retry, idempotency, or duplicate-recovery acceptance test exists for an automated WordPress publisher.
-- WordPress featured-image metadata is not set for the test post.
-- Do not claim scheduled news publishing is operational.
+Caddy serves existing Git-built static files first and falls back to WordPress for WordPress routes and non-static permalinks. The root homepage remains static. The Caddy configuration was validated and reloaded after the routing change.
 
-## Activation gates
+Configuration: `/home/romen/services/hserver-caddy/Caddyfile`
 
-1. Document the WordPress authentication method and store credentials only in an approved secret store; never in Git or workflow exports.
-2. Implement a narrow publisher that accepts only validated articles and maps title, slug, body, excerpt, categories, source attribution, and approved media.
-3. Add idempotency by stable slug/source identity; retries must not create duplicates.
-4. Test in draft mode first; verify REST API output, public permalink, RSS/category visibility, image delivery, and error handling.
-5. Run one explicitly approved single-post publish test through the actual automation path and retain its execution evidence.
-6. Keep global/scheduled dispatch disabled until the complete test passes and an owner explicitly authorizes activation.
-
-## Automation safety
-
-The Content Studio publisher dispatch is expected to remain `PUBLISHER_DISPATCH_ENABLED=false`. The Facebook Content Agent n8n workflow remains inactive. Neither control is evidence that the separate news-to-WordPress pipeline is ready; they are safety controls for their respective systems.
+Pre-change backup: `/home/romen/services/hserver-caddy/Caddyfile.pre-wp-permalink-fallback-20261016`

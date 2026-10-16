@@ -4,13 +4,13 @@ Last updated: 2026-10-16
 
 ## Completed in this repository
 
-- Created a dedicated public Git repository for canonical news source.
-- Added a static-site builder with no database dependency.
-- Added build-and-deploy GitHub Actions workflow.
-- Added source attribution, canonical URLs, RSS feed, sitemap, and slug/source duplicate checks.
+- Dedicated public Git repository for canonical news source.
+- Static-site builder with no database dependency.
+- Build-and-deploy GitHub Actions workflow.
+- Source attribution, canonical URLs, RSS feed, sitemap, and slug/source duplicate checks.
 - Build rejects articles without required metadata, HTTPS source URLs, explicit timezone, or minimum body length.
 - A two-minute host poll deploys the Git-built static site and refuses to deploy when the checkout has uncommitted changes.
-- Image metadata validation requires a source URL, alt text, caption, credit, licence/permission basis, and explicit rights-check flag whenever an image is included.
+- Image metadata validation requires source URL, alt text, caption, credit, licence/permission basis, and explicit rights-check flag.
 - Google Drive image archival and explicit public-delivery scripts exist. One original editorial SVG was delivered to `/media/` and verified publicly with HTTP 200 and matching SHA-256.
 
 ## Live and verified (2026-10-16)
@@ -19,34 +19,44 @@ Last updated: 2026-10-16
 - `/feed.xml` and `/sitemap.xml` return HTTP 200.
 - Static article `/article/dhaka-shyamapur-to-cumilla-81km-rail-cord-line-proposal/` returns HTTP 200.
 - WordPress post ID 680 is published at `https://news.reazromen.com/dhaka-shyamapur-to-cumilla-81km-rail-cord-line-proposal/`.
-- WordPress REST API reported the post as published with the expected permalink and category metadata; WordPress RSS included the post; the category archive returned HTTP 200 and included it.
-- The test post body contains the approved conceptual SVG illustration and source links; the public image returned HTTP 200.
-- Caddy configuration was validated and reloaded after routing was changed to serve existing static files first and fall back to WordPress for non-static permalinks and WordPress routes.
-- The root homepage remains static. WordPress article permalinks and WordPress RSS are available separately.
-- Detailed evidence and limitations are recorded in [WORDPRESS-PUBLISHING-STATUS.md](../docs/WORDPRESS-PUBLISHING-STATUS.md).
+- WordPress REST API reported post 680 as published; WordPress RSS and category archive included it.
+- Caddy serves existing static files first and falls back to WordPress for non-static permalinks and WordPress routes.
+- The new authenticated draft-only endpoint was installed as a WordPress MU plugin and PHP syntax validation passed.
+- n8n smoke workflow fetched the approved Git article, validated it, and created WordPress draft post ID 681 with a test-only title/slug.
+- Retrying the same request returned post ID 681 with `idempotent_replay=true`; no duplicate draft was created.
+- Unauthenticated publisher access returned HTTP 401. Anonymous draft permalink returned HTTP 404.
+- The temporary test webhook was unpublished; n8n main was restarted, and the route returned HTTP 404 afterward.
+- Public homepage and existing published article continued returning HTTP 200.
 
-## Important distinction: manual test vs automation
+Detailed evidence and limitations: [WordPress publishing status](../docs/WORDPRESS-PUBLISHING-STATUS.md).
 
-The WordPress post was inserted as a one-off manual test using a temporary PHP script and the WordPress bootstrap. **This proves the post can exist and be served by WordPress; it does not prove an automated publisher works.** The temporary script is not a maintained production integration.
+## Publisher implementation
+
+- WordPress MU plugin source: `/home/romen/services/news-portal/ops/news-publisher-draft-api.php`.
+- Endpoint: `POST /wp-json/news-publisher/v1/draft`.
+- Auth header: `X-News-Publisher-Token`; the token lives in the protected WordPress environment file and an encrypted n8n credential, not in workflow JSON or Git.
+- The endpoint is hard-coded to create drafts, validates input, restricts image embeds to approved site media, rejects slug conflicts, and handles retry idempotency.
+- Permanent n8n workflow: `News Git → WordPress Draft Publisher (Manual Test Only)`; it is inactive and has no schedule trigger.
+- The one-article test passed using a temporary authenticated webhook workflow, which is now inactive.
 
 ## Not yet enabled / incomplete
 
-- The full Mesh AI → source/editorial validation → Git commit/deploy → WordPress publishing flow has not passed an end-to-end automated test.
-- A reusable WordPress publisher with secret handling, field mapping, idempotency, retries, and duplicate recovery is not yet connected to n8n.
-- WordPress-to-Git export/synchronization and conflict handling are not implemented.
+- The full Mesh AI → source/editorial validation → Git commit/deploy → WordPress pipeline has not passed an end-to-end automated test.
+- Current n8n publisher workflow reads one fixed approved Git article; it is not yet a dynamic queue or connected to the Mesh AI generation stage.
 - Hourly/unattended news generation and publishing are not approved for activation.
+- WordPress-to-Git export/synchronization and conflict handling are not implemented.
 - Image ingestion/upload is not connected to the news n8n workflow.
 - Google Drive OAuth/client configuration must be reviewed before unattended use; do not put tokens in repository files or workflow exports.
 
 ## Next safe activation order
 
-1. Inspect the existing n8n/news workflow and provider health; do not enable schedules while the AI quality/provider test is failing.
-2. Implement a narrowly scoped WordPress publisher using approved secret storage and validated article inputs only.
-3. Add idempotency, draft-first mode, and clear failure/retry behavior.
-4. Test a single article through the real automation path, then verify the REST API, permalink, RSS/category visibility, image delivery, and no-duplicate retry behavior.
-5. Keep global/scheduled dispatch disabled until the owner explicitly approves after reviewing passing test evidence.
+1. Connect Mesh AI generation and source verification to the validated article queue.
+2. Use a new, unused canonical slug for the next end-to-end draft test; the existing canonical slug already belongs to published post 680 and must not be overwritten.
+3. Run the permanent publisher workflow manually and verify draft status, metadata, media, RSS/category behavior after editorial publication, and idempotent retry.
+4. Add monitored failure handling and ensure drafts are not silently marked published.
+5. Keep all schedules and global dispatch disabled until the owner explicitly authorizes activation after reviewing passing evidence.
 6. Implement explicit WordPress-to-Git export only with conflict detection; Git remains canonical for the static corpus.
 
 ## Image rights
 
-The image rights policy, Google Drive uploader, and explicit public-delivery script are implemented. A hosted image must have a documented licence, permission, public-domain basis, or other valid rights basis; attribution alone is not permission to rehost a publisher's image.
+A hosted image must have a documented licence, permission, public-domain basis, or other valid rights basis. Attribution alone is not permission to rehost a publisher's image.
